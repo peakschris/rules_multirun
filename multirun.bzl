@@ -13,6 +13,11 @@ load(
     "update_attrs",
 )
 
+# note, call vendored-in copy of this aspect bazel-lib function. It would be better
+# to depend on it directly, or better, is there a more modern way to wrap cross-platform
+# launchers?
+load("//internal/bazel-lib:windows_utils.bzl", "create_windows_native_launcher_script")
+
 _BinaryArgsEnvInfo = provider(
     fields = ["args", "env"],
     doc = "The arguments and environment to use when running the binary",
@@ -49,6 +54,7 @@ def _multirun_impl(ctx):
     instructions_file = ctx.actions.declare_file(ctx.label.name + ".json")
     runner_info = ctx.attr._runner[DefaultInfo]
     runner_exe = runner_info.files_to_run.executable
+    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
 
     runfiles = ctx.runfiles(files = [instructions_file, runner_exe])
     runfiles = runfiles.merge(ctx.attr._bash_runfiles[DefaultInfo].default_runfiles)
@@ -120,17 +126,21 @@ multirun_script="$(rlocation {})"
 instructions="$(rlocation {})"
 exec "$multirun_script" "$instructions" "$@"
 """.format(shell.quote(rlocation_path(ctx, runner_exe)), shell.quote(rlocation_path(ctx, instructions_file)))
-    out_file = ctx.actions.declare_file(ctx.label.name + ".bash")
+    bash_launcher = ctx.actions.declare_file(ctx.label.name + ".bash")
     ctx.actions.write(
-        output = out_file,
+        output = bash_launcher,
         content = RUNFILES_PREFIX + script,
         is_executable = True,
     )
+
+    # there is an example of this here: https://github.com/aspect-build/bazel-lib/blob/main/lib/private/bats.bzl
+    launcher = create_windows_native_launcher_script(ctx, bash_launcher) if is_windows else bash_launcher
+
     return [
         DefaultInfo(
-            files = depset([out_file]),
-            runfiles = runfiles.merge(ctx.runfiles(files = runfiles_files + ctx.files.data)),
-            executable = out_file,
+            files = depset([bash_launcher]),
+            runfiles = runfiles.merge(ctx.runfiles(files = runfiles_files + ctx.files.data + [bash_launcher])),
+            executable = launcher,
         ),
     ]
 
@@ -180,11 +190,15 @@ def multirun_with_transition(cfg, allowlist = None):
             cfg = "exec",
             executable = True,
         ),
+        "_windows_constraint": attr.label(default = "@platforms//os:windows"),
     }
 
     return rule(
         implementation = _multirun_impl,
         attrs = update_attrs(attrs, cfg, allowlist),
+        toolchains = [
+            "@bazel_tools//tools/sh:toolchain_type",
+        ],
         executable = True,
         doc = """\
 A multirun composes multiple command rules in order to run them in a single
