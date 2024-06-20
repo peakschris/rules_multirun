@@ -89,7 +89,7 @@ def _multirun_impl(ctx):
         print_command = ctx.attr.print_command,
         keep_going = ctx.attr.keep_going,
         buffer_output = ctx.attr.buffer_output,
-        verbose = False,
+        verbose = ctx.attr.verbose,
     )
     instructions_file = ctx.actions.declare_file(ctx.label.name + ".json")
     ctx.actions.write(
@@ -156,6 +156,10 @@ def multirun_with_transition(cfg, allowlist = None):
         "buffer_output": attr.bool(
             default = False,
             doc = "Buffer the output of the commands and print it after each command has finished. Only for parallel execution.",
+        ),
+        "verbose": attr.bool(
+            default = False,
+            doc = "Print some debugging information during the multirun process",
         ),
         "_bash_runfiles": attr.label(
             default = Label("@bazel_tools//tools/bash/runfiles"),
