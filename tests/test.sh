@@ -55,6 +55,7 @@ $script
 echo pass
 
 script=$(check_rlocation _main/tests/multirun_binary_args.exe)
+$script
 echo pass
 script=$(check_rlocation _main/tests/multirun_binary_env.exe)
 $script
@@ -64,7 +65,6 @@ $script
 echo pass
 
 script="$(check_rlocation _main/tests/multirun_parallel.exe)"
-echo $script
 parallel_output="$($script)"
 if [[ -n "$parallel_output" ]]; then
   echo "Expected no output, got '$parallel_output'"
@@ -73,7 +73,7 @@ else
   echo pass
 fi
 
-script="$(check_rlocation _main/tests/multirun_parallel_no_buffer.$ext)"
+script="$(check_rlocation _main/tests/multirun_parallel_no_buffer.exe)"
 parallel_output="$($script)"
 if [[ -n "$parallel_output" ]]; then
   echo "Expected no output, got '$parallel_output'"
@@ -82,8 +82,7 @@ else
   echo pass
 fi
 
-script="$(check_rlocation _main/tests/multirun_parallel_with_output.$ext)"
-echo $script
+script="$(check_rlocation _main/tests/multirun_parallel_with_output.exe)"
 parallel_output=$($script | sed 's=@[^/]*/=@/=g' 2>&1)
 if [[ "$parallel_output" != "Running @//tests:echo_hello
 hello
@@ -95,8 +94,7 @@ else
   echo pass
 fi
 
-script=$(check_rlocation _main/tests/multirun_serial.$ext)
-echo $script
+script=$(check_rlocation _main/tests/multirun_serial.exe)
 serial_output=$($script | sed 's=@[^/]*/=@/=g')
 if [[ "$serial_output" != "Running @//tests:validate_args_cmd
 Running @//tests:validate_env_cmd" ]]; then
@@ -106,8 +104,7 @@ else
   echo pass
 fi
 
-script=$(check_rlocation _main/tests/multirun_serial_keep_going.$ext)
-echo $script
+script=$(check_rlocation _main/tests/multirun_serial_keep_going.exe)
 if serial_output=$($script | sed 's=@[^/]*/=@/=g'); then
   echo "Expected failure" >&2
   #exit 1
@@ -125,7 +122,7 @@ else
   echo pass
 fi
 
-script=$(check_rlocation _main/tests/multirun_serial_description.$ext)
+script=$(check_rlocation _main/tests/multirun_serial_description.exe)
 serial_output=$($script | sed 's=@[^/]*/=@/=g')
 if [[ "$serial_output" != "some custom string
 Running @//tests:validate_env_cmd" ]]; then
@@ -135,7 +132,7 @@ else
   echo pass
 fi
 
-script=$(check_rlocation _main/tests/multirun_serial_no_print.$ext)
+script=$(check_rlocation _main/tests/multirun_serial_no_print.exe)
 serial_no_output=$($script)
 if [[ -n "$serial_no_output" ]]; then
   echo "Expected no output, got '$serial_no_output'"
@@ -144,7 +141,7 @@ else
   echo pass
 fi
 
-script=$(check_rlocation _main/tests/multirun_with_transition.$ext)
+script=$(check_rlocation _main/tests/multirun_with_transition.exe)
 serial_with_transition_output=$($script | sed 's=@[^/]*/=@/=g')
 if [[ "$serial_with_transition_output" != "Running @//tests:validate_env_cmd
 Running @//tests:validate_args_cmd" ]]; then
@@ -154,7 +151,7 @@ else
   echo pass
 fi
 
-script=$(check_rlocation _main/tests/root_multirun.$ext)
+script=$(check_rlocation _main/tests/root_multirun.exe)
 root_output=$($script)
 if [[ "$root_output" != "hello" ]]; then
   echo "Expected 'hello' from root, got '$root_output'"

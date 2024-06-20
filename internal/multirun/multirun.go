@@ -106,8 +106,11 @@ func runCommand(command Command, bufferOutput bool, verbose bool) (int, string, 
     if bufferOutput {
         cmd.Stdout = &stdoutBuf
         cmd.Stderr = &stdoutBuf
+    } else {
+        cmd.Stdout = os.Stdout
+        cmd.Stderr = os.Stderr
     }
-
+    
     err := cmd.Run() // Run and wait for the command to complete
     if err != nil {
         if exitError, ok := err.(*exec.ExitError); ok {
@@ -119,6 +122,9 @@ func runCommand(command Command, bufferOutput bool, verbose bool) (int, string, 
 }
 
 func performConcurrently(commands []Command, printCommand bool, bufferOutput bool, verbose bool) bool {
+    if (verbose) {
+        fmt.Printf("performConcurrently: %d commands\n", len(commands))
+    }
     var wg sync.WaitGroup
     success := true
     mu := &sync.Mutex{} // To safely update `success`
@@ -136,7 +142,9 @@ func performConcurrently(commands []Command, printCommand bool, bufferOutput boo
                 return
             }
 
-            if printCommand {
+            if printCommand && bufferOutput {
+                // If print command is set, buffer output isn't, we don't print commands
+                // TODO: is this correct?!!
                 fmt.Println(cmd.Tag)
             }
 
@@ -157,13 +165,18 @@ func performConcurrently(commands []Command, printCommand bool, bufferOutput boo
 }
 
 func performSerially(commands []Command, printCommand bool, keepGoing bool, verbose bool) bool {
+    if (verbose) {
+        fmt.Printf("performSerially: %d commands\n", len(commands))
+    }
     success := true
     for _, cmd := range commands {
         if printCommand {
             fmt.Println(cmd.Tag)
         }
 
-        _, _, err := runCommand(cmd, false, verbose)
+        // Serial always buffers output, regardless of setting in json
+        bufferOutput := false
+        _, _, err := runCommand(cmd, bufferOutput, verbose)
         if err != nil {
             if keepGoing {
                 success = false
@@ -171,6 +184,8 @@ func performSerially(commands []Command, printCommand bool, keepGoing bool, verb
                 return false
             }
         }
+
+        //fmt.Println(output)
     }
     return success
 }
@@ -271,27 +286,28 @@ func main() {
 		os.Exit(1)
 	}
 
-    verbose := verbose || instr.Verbose
+    parallel := instr.Jobs != 1
+    printCommand := instr.Print_command
+    instr.Commands = resolveCommands(instr.Commands)
+
+    verbose = verbose || instr.Verbose
     if verbose {
         fmt.Println("args[0]: "+os.Args[0])
         fmt.Println("invoking exe: "+exe)
         debugEnv()
         fmt.Println("Read instructions "+instructionsFile)
+        b, err := json.MarshalIndent(instr, "", "  ")
+        if err != nil {
+            fmt.Println("error:", err)
+        }
+        fmt.Print(string(b))
     }
-        
-
-    if verbose {
-        fmt.Println("args")
-        debugEnv()
-    }
-    parallel := instr.Jobs == 0
-    printCommand := instr.Print_command
-    commands := resolveCommands(instr.Commands)
+    
     var success bool
     if parallel {
-        success = performConcurrently(commands, printCommand, instr.Buffer_output, instr.Verbose)
+        success = performConcurrently(instr.Commands, printCommand, instr.Buffer_output, verbose)
     } else {
-        success = performSerially(commands, printCommand, instr.Keep_going, instr.Verbose)
+        success = performSerially(instr.Commands, printCommand, instr.Keep_going, verbose)
     }
 
     if success {
