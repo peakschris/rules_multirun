@@ -14,6 +14,7 @@ source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \
   { echo>&2 "ERROR: cannot find $f"; exit 1; }; f=; set -e
 # --- end runfiles.bash initialization v3 ---
 
+# without this, test cases silently pass if rlocation returns a missing script
 check_rlocation() {
     script=$(rlocation $1)
     if [ ! -f "$script" ]; then
@@ -22,9 +23,6 @@ check_rlocation() {
     fi
     echo "$script"
 }
-
-echo RUNFILES_MANIFEST_FILE=${RUNFILES_MANIFEST_FILE:-}
-echo RUNFILES_DIR=${RUNFILES_DIR:-}
 
 unameOut="$(uname -s)"
 case "${unameOut}" in
@@ -42,56 +40,44 @@ if [[ "$output" != "hello" ]]; then
   echo "Expected 'hello', got '$output'"
   exit 1
 fi
-echo pass
 
 script=$(check_rlocation _main/tests/validate_args_cmd.$ext)
 $script
-echo pass
 script=$(check_rlocation _main/tests/validate_chdir_location_cmd.$ext)
 $script
-echo pass
 script=$(check_rlocation _main/tests/validate_env_cmd.$ext)
 $script
-echo pass
 
 script=$(check_rlocation _main/tests/multirun_binary_args.exe)
 $script
-echo pass
 script=$(check_rlocation _main/tests/multirun_binary_env.exe)
 $script
-echo pass
 script=$(check_rlocation _main/tests/multirun_binary_args_location.exe)
 $script
-echo pass
 
 script="$(check_rlocation _main/tests/multirun_parallel.exe)"
 parallel_output="$($script)"
 if [[ -n "$parallel_output" ]]; then
   echo "Expected no output, got '$parallel_output'"
-  #exit 1
-else
-  echo pass
+  exit 1
 fi
 
 script="$(check_rlocation _main/tests/multirun_parallel_no_buffer.exe)"
 parallel_output="$($script)"
 if [[ -n "$parallel_output" ]]; then
   echo "Expected no output, got '$parallel_output'"
-  #exit 1
-else
-  echo pass
+  exit 1
 fi
 
 script="$(check_rlocation _main/tests/multirun_parallel_with_output.exe)"
-parallel_output=$($script | sed 's=@[^/]*/=@/=g' 2>&1)
+# commands are executing in parallel, we can't test any ordering. sort output
+parallel_output=$($script | sed 's=@[^/]*/=@/=g' 2>&1 | sort)
 if [[ "$parallel_output" != "Running @//tests:echo_hello
-hello
 Running @//tests:echo_hello2
+hello
 hello2" ]]; then
   echo "Expected output, got '$parallel_output'"
-  #exit 1
-else
-  echo pass
+  exit 1
 fi
 
 script=$(check_rlocation _main/tests/multirun_serial.exe)
@@ -99,17 +85,14 @@ serial_output=$($script | sed 's=@[^/]*/=@/=g')
 if [[ "$serial_output" != "Running @//tests:validate_args_cmd
 Running @//tests:validate_env_cmd" ]]; then
   echo "Expected labeled output, got '$serial_output'"
-  #exit 1
-else
-  echo pass
+  exit 1
 fi
 
+echo "_main/tests/multirun_serial_keep_going.exe"
 script=$(check_rlocation _main/tests/multirun_serial_keep_going.exe)
 if serial_output=$($script | sed 's=@[^/]*/=@/=g'); then
   echo "Expected failure" >&2
-  #exit 1
-else
-  echo pass
+  exit 1
 fi
 
 if [[ "$serial_output" != "Running @//tests:echo_and_fail
@@ -117,9 +100,7 @@ hello and fail
 Running @//tests:echo_hello
 hello" ]]; then
   echo "Expected labeled output, got '$serial_output'"
-  #exit 1
-else
-  echo pass
+  exit 1
 fi
 
 script=$(check_rlocation _main/tests/multirun_serial_description.exe)
@@ -127,35 +108,28 @@ serial_output=$($script | sed 's=@[^/]*/=@/=g')
 if [[ "$serial_output" != "some custom string
 Running @//tests:validate_env_cmd" ]]; then
   echo "Expected labeled output, got '$serial_output'"
-  #exit 1
-else
-  echo pass
+  exit 1
 fi
 
 script=$(check_rlocation _main/tests/multirun_serial_no_print.exe)
 serial_no_output=$($script)
 if [[ -n "$serial_no_output" ]]; then
   echo "Expected no output, got '$serial_no_output'"
-  #exit 1
-else
-  echo pass
+  exit 1
 fi
 
+echo "_main/tests/multirun_with_transition.exe"
 script=$(check_rlocation _main/tests/multirun_with_transition.exe)
 serial_with_transition_output=$($script | sed 's=@[^/]*/=@/=g')
 if [[ "$serial_with_transition_output" != "Running @//tests:validate_env_cmd
 Running @//tests:validate_args_cmd" ]]; then
   echo "Expected labeled output, got '$serial_with_transition_output'"
-  #exit 1
-else
-  echo pass
+  exit 1
 fi
 
 script=$(check_rlocation _main/tests/root_multirun.exe)
 root_output=$($script)
 if [[ "$root_output" != "hello" ]]; then
   echo "Expected 'hello' from root, got '$root_output'"
-  #exit 1
-else
-  echo pass
+  exit 1
 fi

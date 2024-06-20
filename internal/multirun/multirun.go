@@ -149,7 +149,7 @@ func performConcurrently(commands []Command, printCommand bool, bufferOutput boo
             }
 
             if bufferOutput {
-                fmt.Println(output) // Print buffered output
+                fmt.Print(output) // Print buffered output
             }
 
             if exitCode != 0 {
@@ -176,8 +176,8 @@ func performSerially(commands []Command, printCommand bool, keepGoing bool, verb
 
         // Serial always buffers output, regardless of setting in json
         bufferOutput := false
-        _, _, err := runCommand(cmd, bufferOutput, verbose)
-        if err != nil {
+        code, _, err := runCommand(cmd, bufferOutput, verbose)
+        if code != 0 || err != nil {
             if keepGoing {
                 success = false
             } else {
@@ -246,7 +246,8 @@ func resolveCommands(commands []Command) ([]Command) {
                 }
                 bashPath = bash
             }
-            command.Args = append([]string{"-c", command.Path + " \"$@\"", "--"}, command.Args...)
+            unixPath := strings.Replace(command.Path, "\\", "/", -1)
+            command.Args = append([]string{"-c", unixPath + " \"$@\"", "--"}, command.Args...)
             command.Path = bashPath
         }
         out = append(out, command)
@@ -302,7 +303,7 @@ func main() {
         }
         fmt.Print(string(b))
     }
-    
+
     var success bool
     if parallel {
         success = performConcurrently(instr.Commands, printCommand, instr.Buffer_output, verbose)
