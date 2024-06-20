@@ -244,7 +244,7 @@ func main() {
 
     if val := os.Getenv("RUNFILES_MANIFEST_FILE"); val == "" {
         manifestFile := exe + ".runfiles_manifest"
-        fmt.Println("set RUNFILES_MANIFEST_FILE="+manifestFile)
+        //fmt.Println("set RUNFILES_MANIFEST_FILE="+manifestFile)
         if err := os.Setenv("RUNFILES_MANIFEST_FILE", manifestFile); err != nil {
               fmt.Println("Failed to set RUNFILES_MANIFEST_FILE")
               os.Exit(1)
