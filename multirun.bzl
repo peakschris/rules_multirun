@@ -67,7 +67,7 @@ def _multirun_impl(ctx):
     command_executables = []
     for command in ctx.attr.commands:
         args = command[_BinaryArgsEnvInfo].args if _BinaryArgsEnvInfo in command else []
-        env = command[_BinaryArgsEnvInfo].env if _BinaryArgsEnvInfo in command else []
+        env = command[_BinaryArgsEnvInfo].env if _BinaryArgsEnvInfo in command else {}
         exe = _command_exe(command)
 
         if CommandInfo in command:
