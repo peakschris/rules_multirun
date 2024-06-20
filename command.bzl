@@ -48,7 +48,8 @@ def _command_impl(ctx):
         for v in ctx.attr.arguments
     ]
     command_exec = " ".join(["exec $(rlocation %s)" % shell.quote(rlocation_path(ctx, executable))] + str_args + ['"$@"\n'])
-
+    print(command_exec)
+    
     out_file = ctx.actions.declare_file(ctx.label.name + ".bash")
     ctx.actions.write(
         output = out_file,

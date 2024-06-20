@@ -126,10 +126,14 @@ multirun_script="$(rlocation {})"
 instructions="$(rlocation {})"
 exec "$multirun_script" "$instructions" "$@"
 """.format(shell.quote(rlocation_path(ctx, runner_exe)), shell.quote(rlocation_path(ctx, instructions_file)))
+
+    if (not is_windows):
+        script = RUNFILES_PREFIX + script,
+
     bash_launcher = ctx.actions.declare_file(ctx.label.name + ".bash")
     ctx.actions.write(
         output = bash_launcher,
-        content = RUNFILES_PREFIX + script,
+        content = script,
         is_executable = True,
     )
 
