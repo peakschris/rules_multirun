@@ -87,7 +87,7 @@ func scriptPath(workspaceName, path string) string {
     return filepath.Join(workspaceName, path)
 }
 
-func runCommand(command Command, bufferOutput bool) (int, string, error) {
+func runCommand(command Command, bufferOutput bool, verbose bool) (int, string, error) {
     var cmd *exec.Cmd
     args := command.Args
     env := os.Environ() // Convert map to format "key=value"
@@ -95,6 +95,10 @@ func runCommand(command Command, bufferOutput bool) (int, string, error) {
         env = append(env, fmt.Sprintf("%s=%s", k, v))
     }
 
+    if verbose {
+		cmdStr := command.Path + " " + strings.Join(args, " ")
+		fmt.Println("Command line: ", cmdStr)
+    }
     cmd = exec.Command(command.Path, args...)
     cmd.Env = env
 
@@ -114,7 +118,7 @@ func runCommand(command Command, bufferOutput bool) (int, string, error) {
     return 0, stdoutBuf.String(), nil
 }
 
-func performConcurrently(commands []Command, printCommand bool, bufferOutput bool) bool {
+func performConcurrently(commands []Command, printCommand bool, bufferOutput bool, verbose bool) bool {
     var wg sync.WaitGroup
     success := true
     mu := &sync.Mutex{} // To safely update `success`
@@ -123,7 +127,7 @@ func performConcurrently(commands []Command, printCommand bool, bufferOutput boo
         wg.Add(1)
         go func(cmd Command) {
             defer wg.Done()
-            exitCode, output, err := runCommand(cmd, bufferOutput)
+            exitCode, output, err := runCommand(cmd, bufferOutput, verbose)
             if err != nil {
                 fmt.Println("Error running command:", err)
                 mu.Lock()
@@ -152,14 +156,14 @@ func performConcurrently(commands []Command, printCommand bool, bufferOutput boo
     return success
 }
 
-func performSerially(commands []Command, printCommand bool, keepGoing bool) bool {
+func performSerially(commands []Command, printCommand bool, keepGoing bool, verbose bool) bool {
     success := true
     for _, cmd := range commands {
         if printCommand {
             fmt.Println(cmd.Tag)
         }
 
-        _, _, err := runCommand(cmd, false)
+        _, _, err := runCommand(cmd, false, verbose)
         if err != nil {
             if keepGoing {
                 success = false
@@ -266,9 +270,9 @@ func main() {
     commands := resolveCommands(instr.Commands)
     var success bool
     if parallel {
-        success = performConcurrently(commands, printCommand, instr.Buffer_output)
+        success = performConcurrently(commands, printCommand, instr.Buffer_output, instr.Verbose)
     } else {
-        success = performSerially(commands, printCommand, instr.Keep_going)
+        success = performSerially(commands, printCommand, instr.Keep_going, instr.Verbose)
     }
 
     if success {
