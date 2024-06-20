@@ -8,7 +8,6 @@ load(
     "//internal:constants.bzl",
     "CommandInfo",
     "RUNFILES_PREFIX",
-    "rlocation_path",
     "update_attrs",
 )
 load("//internal/bazel-lib:windows_utils.bzl", "BATCH_RLOCATION_FUNCTION")
@@ -61,7 +60,7 @@ def _command_impl(ctx):
             "export %s=%s" % (k, shell.quote(ctx.expand_location(v, targets = expansion_targets)))
             for k, v in ctx.attr.environment.items()
         ]
-        command_exec = " ".join(["exec $(rlocation %s)" % shell.quote(rlocation_path(ctx, executable))] + str_args + ['"$@"\n'])
+        command_exec = " ".join(["exec $(rlocation %s)" % shell.quote(to_rlocation_path(ctx, executable))] + str_args + ['"$@"\n'])
         #print(command_exec)
         launcher = ctx.actions.declare_file(ctx.label.name + ".bash")
         ctx.actions.write(

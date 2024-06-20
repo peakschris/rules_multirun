@@ -9,7 +9,6 @@ load(
     "//internal:constants.bzl",
     "CommandInfo",
     "RUNFILES_PREFIX",
-    "rlocation_path",
     "update_attrs",
 )
 
@@ -90,7 +89,7 @@ def _multirun_impl(ctx):
         print_command = ctx.attr.print_command,
         keep_going = ctx.attr.keep_going,
         buffer_output = ctx.attr.buffer_output,
-        workspace_name = ctx.workspace_name,
+        verbose = False,
     )
     instructions_file = ctx.actions.declare_file(ctx.label.name + ".json")
     ctx.actions.write(

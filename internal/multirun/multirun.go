@@ -64,7 +64,7 @@ type Instructions struct {
     Print_command bool `json:"print_command"`
 	Keep_going bool `json:"keep_going"`
     Buffer_output bool `json:"buffer_output"`
-    Workspace_name string `json:"workspace_name"`
+    Verbose bool `json:"verbose"`
 }
 
 func readInstructions(instructionsFile string) (Instructions, error) {
@@ -251,7 +251,6 @@ func main() {
         }
     }
     
-    //debugEnv()
 	instructionsFile := basePath + ".json"
 	instr, err := readInstructions(instructionsFile)
 	if err != nil {
@@ -259,6 +258,9 @@ func main() {
 		os.Exit(1)
 	}
 
+    if instr.Verbose {
+        debugEnv()
+    }
     parallel := instr.Jobs == 0
     printCommand := instr.Print_command
     commands := resolveCommands(instr.Commands)
