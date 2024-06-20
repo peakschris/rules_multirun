@@ -17,3 +17,7 @@ build:linux --per_file_copt="external/.*zlib.*@-Wno-everything"
 test --test_output=errors
 
 common --enable_runfiles
+
+# rules_go's go sdk cgo compiler doesn't build with some compilers 
+# that may be configured by bazel, but we don't need it; disable
+common --@rules_go//go/config:pure
