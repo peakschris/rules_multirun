@@ -194,9 +194,12 @@ func invokingExe() (string) {
          exe, _ := os.Executable()
          return exe
     }
+    arg0 := os.Args[0]
+    if (strings.HasPrefix(arg0, "/")) {
+        return arg0
+    }
     cwd := os.Getenv("PWD")
-    exe, _ := strings.CutSuffix(cwd, "/_main")
-    exe, _ = strings.CutSuffix(exe, ".runfiles")
+    exe := cwd + "/" + arg0
     return exe
 }
 
@@ -237,6 +240,7 @@ func resolveCommands(commands []Command) ([]Command) {
 }
 
 func main() {
+    verbose := os.Getenv("MULTIRUN_VERBOSE") != ""
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 	cancelOnInterrupt(ctx, cancelFunc)
@@ -244,17 +248,22 @@ func main() {
 	// Because we are invoked via a symlink, we cannot accept any command line args
 	// The instructions file is always adjacent to the symlink location
 	exe := invokingExe()
-	basePath, _ := strings.CutSuffix(exe, ".exe")
 
+    // We must only set runfiles env if it isn't already set
     if val := os.Getenv("RUNFILES_MANIFEST_FILE"); val == "" {
-        manifestFile := exe + ".runfiles_manifest"
-        //fmt.Println("set RUNFILES_MANIFEST_FILE="+manifestFile)
-        if err := os.Setenv("RUNFILES_MANIFEST_FILE", manifestFile); err != nil {
-              fmt.Println("Failed to set RUNFILES_MANIFEST_FILE")
-              os.Exit(1)
+        if dir := os.Getenv("RUNFILES_DIR"); dir == "" {
+            manifestFile := exe + ".runfiles_manifest"
+            if verbose {
+                fmt.Println("set RUNFILES_MANIFEST_FILE="+manifestFile)
+            }
+            if err := os.Setenv("RUNFILES_MANIFEST_FILE", manifestFile); err != nil {
+                fmt.Println("Failed to set RUNFILES_MANIFEST_FILE")
+                os.Exit(1)
+            }
         }
     }
-    
+
+	basePath, _ := strings.CutSuffix(exe, ".exe")
 	instructionsFile := basePath + ".json"
 	instr, err := readInstructions(instructionsFile)
 	if err != nil {
@@ -262,7 +271,17 @@ func main() {
 		os.Exit(1)
 	}
 
-    if instr.Verbose {
+    verbose := verbose || instr.Verbose
+    if verbose {
+        fmt.Println("args[0]: "+os.Args[0])
+        fmt.Println("invoking exe: "+exe)
+        debugEnv()
+        fmt.Println("Read instructions "+instructionsFile)
+    }
+        
+
+    if verbose {
+        fmt.Println("args")
         debugEnv()
     }
     parallel := instr.Jobs == 0
