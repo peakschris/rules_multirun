@@ -88,7 +88,6 @@ Running @//tests:validate_env_cmd" ]]; then
   exit 1
 fi
 
-echo "_main/tests/multirun_serial_keep_going.exe"
 script=$(check_rlocation _main/tests/multirun_serial_keep_going.exe)
 if serial_output=$($script | sed 's=@[^/]*/=@/=g'); then
   echo "Expected failure" >&2
@@ -118,7 +117,6 @@ if [[ -n "$serial_no_output" ]]; then
   exit 1
 fi
 
-echo "_main/tests/multirun_with_transition.exe"
 script=$(check_rlocation _main/tests/multirun_with_transition.exe)
 serial_with_transition_output=$($script | sed 's=@[^/]*/=@/=g')
 if [[ "$serial_with_transition_output" != "Running @//tests:validate_env_cmd
