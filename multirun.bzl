@@ -50,52 +50,32 @@ _binary_args_env_aspect = aspect(
     implementation = _binary_args_env_aspect_impl,
 )
 
+def _command_exe(command):
+    default_info = command[DefaultInfo]
+    if default_info.files_to_run == None:
+        fail("%s is not executable" % command.label, attr = "commands")
+    exe = default_info.files_to_run.executable
+    if exe == None:
+        fail("%s does not have an executable file" % command.label, attr = "commands")
+    return exe
+
 def _multirun_impl(ctx):
     instructions_file = ctx.actions.declare_file(ctx.label.name + ".json")
-    runner_info = ctx.attr._runner[DefaultInfo]
-    runner_exe = runner_info.files_to_run.executable
     is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
 
-    runfiles = ctx.runfiles(files = [instructions_file, runner_exe])
-    runfiles = runfiles.merge(ctx.attr._bash_runfiles[DefaultInfo].default_runfiles)
-    runfiles = runfiles.merge(runner_info.default_runfiles)
+    if ctx.attr.jobs < 0:
+        fail("'jobs' attribute should be at least 0")
 
-    for data_dep in ctx.attr.data:
-        default_runfiles = data_dep[DefaultInfo].default_runfiles
-        if default_runfiles != None:
-            runfiles = runfiles.merge(default_runfiles)
-
-    commands = []
-    tagged_commands = []
-    runfiles_files = []
+    command_executables = []
     for command in ctx.attr.commands:
-        tagged_commands.append(struct(tag = str(command.label), command = command))
-
-    for tag_command in tagged_commands:
-        command = tag_command.command
-
-        default_info = command[DefaultInfo]
-        if default_info.files_to_run == None:
-            fail("%s is not executable" % command.label, attr = "commands")
-        exe = default_info.files_to_run.executable
-        if exe == None:
-            fail("%s does not have an executable file" % command.label, attr = "commands")
-        runfiles_files.append(exe)
-
-        args = []
-        env = {}
-        if _BinaryArgsEnvInfo in command:
-            args = command[_BinaryArgsEnvInfo].args
-            env = command[_BinaryArgsEnvInfo].env
-
-        default_runfiles = default_info.default_runfiles
-        if default_runfiles != None:
-            runfiles = runfiles.merge(default_runfiles)
+        args = command[_BinaryArgsEnvInfo].args if _BinaryArgsEnvInfo in command else []
+        env = command[_BinaryArgsEnvInfo].env if _BinaryArgsEnvInfo in command else []
+        exe = _command_exe(command)
 
         if CommandInfo in command:
             tag = command[CommandInfo].description
         else:
-            tag = "Running {}".format(tag_command.tag)
+            tag = "Running {}".format(str(command.label))
 
         commands.append(struct(
             tag = tag,
@@ -103,14 +83,11 @@ def _multirun_impl(ctx):
             args = args,
             env = env,
         ))
+        command_executables.append(exe)
 
-    if ctx.attr.jobs < 0:
-        fail("'jobs' attribute should be at least 0")
-
-    jobs = ctx.attr.jobs
     instructions = struct(
         commands = commands,
-        jobs = jobs,
+        jobs = ctx.attr.jobs,
         print_command = ctx.attr.print_command,
         keep_going = ctx.attr.keep_going,
         buffer_output = ctx.attr.buffer_output,
@@ -121,24 +98,22 @@ def _multirun_impl(ctx):
         content = json.encode(instructions),
     )
 
-    script = """\
-multirun_script="$(rlocation {})"
-instructions="$(rlocation {})"
-exec "$multirun_script" "$instructions" "$@"
-""".format(shell.quote(rlocation_path(ctx, runner_exe)), shell.quote(rlocation_path(ctx, instructions_file)))
-
-    if (not is_windows):
-        script = RUNFILES_PREFIX + script,
-
-    bash_launcher = ctx.actions.declare_file(ctx.label.name + ".bash")
-    ctx.actions.write(
-        output = bash_launcher,
-        content = script,
+    out = ctx.actions.declare_file(ctx.label.name + ".exe")
+    ctx.actions.symlink(
+        target_file = ctx.executable._runner,
+        output = out,
         is_executable = True,
     )
 
-    # there is an example of this here: https://github.com/aspect-build/bazel-lib/blob/main/lib/private/bats.bzl
-    launcher = create_windows_native_launcher_script(ctx, bash_launcher) if is_windows else bash_launcher
+    runfiles = ctx.runfiles(files = command_executables + [instructions_file])
+    runfiles = runfiles.merge_all([
+        d[DefaultInfo].default_runfiles
+        for d in ctx.attr.data + [ctx.attr._runner]
+    ])
+    runfiles = runfiles.merge_all([
+        tc.command[DefaultInfo].default_runfiles
+        for tc in tagged_commands
+    ])
 
     return [
         DefaultInfo(
@@ -190,7 +165,7 @@ def multirun_with_transition(cfg, allowlist = None):
             default = Label("@bazel_tools//tools/bash/runfiles"),
         ),
         "_runner": attr.label(
-            default = Label("//internal:multirun"),
+            default = Label("//internal/multirun:multirun"),
             cfg = "exec",
             executable = True,
         ),
