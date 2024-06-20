@@ -15,14 +15,14 @@ import (
     "sync"
     "syscall"
 
-	//"github.com/bazelbuild/rules_go/go/tools/bazel"
+	"github.com/bazelbuild/rules_go/go/runfiles"
 )
 
 func runfile(path string) (string, error) {
-	fullPath, err1 := Runfile(path)
+	fullPath, err1 := runfiles.Rlocation(path)
 	if err1 != nil {
 		strippedPath := strings.SplitN(path, "/", 2)[1]
-		fullPath2, err2 := Runfile(strippedPath)
+		fullPath2, err2 := runfiles.Rlocation(strippedPath)
 		if err2 != nil {
 			fmt.Fprintf(os.Stderr, "Failed to lookup runfile for %s %s\n", path, err1.Error())
 			fmt.Fprintf(os.Stderr, "also tried %s %s\n", strippedPath, err2.Error())
@@ -43,10 +43,10 @@ func debugEnv() {
 
     
 	// Check that the files can be listed.
-	entries, _ := ListRunfiles()
-	for _, e := range entries {
-			fmt.Println(e.ShortPath, e.Path)
-	}
+	//entries, _ := ListRunfiles()
+	//for _, e := range entries {
+	//		fmt.Println(e.ShortPath, e.Path)
+	//}
 }
 
 type Command struct {
@@ -245,19 +245,8 @@ func main() {
 	exe := invokingExe()
 	basePath, _ := strings.CutSuffix(exe, ".exe")
 
-    if val := os.Getenv("RUNFILES_MANIFEST_FILE"); val == "" {
-        manifestFile := exe + ".runfiles_manifest"
-        fmt.Println("set RUNFILES_MANIFEST_FILE="+manifestFile)
-        if err := os.Setenv("RUNFILES_MANIFEST_FILE", manifestFile); err != nil {
-              fmt.Println("Failed to set RUNFILES_MANIFEST_FILE")
-              os.Exit(1)
-        }
-    }
-
     manifest := os.Getenv("RUNFILES_MANIFEST_FILE")
     fmt.Println("RUNFILES_MANIFEST_FILE="+manifest)
-    debugEnv()
-    initRunfiles()
     debugEnv()
 
 	instructionsFile := basePath + ".json"
