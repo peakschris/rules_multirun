@@ -55,7 +55,7 @@ type Command struct {
 	Tag string `json:"tag"`
 	Path string `json:"path"`
 	Args []string `json:"args"`
-	Env []string `json:"env"`
+	Env map[string]string `json:"env"`
 }
 
 type Instructions struct {
@@ -241,6 +241,16 @@ func main() {
 	// The instructions file is always adjacent to the symlink location
 	exe := invokingExe()
 	basePath, _ := strings.CutSuffix(exe, ".exe")
+
+    if val := os.Getenv("RUNFILES_MANIFEST_FILE"); val == "" {
+        manifestFile := exe + ".runfiles_manifest"
+        fmt.Println("set RUNFILES_MANIFEST_FILE="+manifestFile)
+        if err := os.Setenv("RUNFILES_MANIFEST_FILE", manifestFile); err != nil {
+              fmt.Println("Failed to set RUNFILES_MANIFEST_FILE")
+              os.Exit(1)
+        }
+    }
+    
     //debugEnv()
 	instructionsFile := basePath + ".json"
 	instr, err := readInstructions(instructionsFile)
