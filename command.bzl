@@ -87,7 +87,7 @@ def _command_impl(ctx):
             is_executable = True,
         )
 
-    runfiles = ctx.runfiles(files = ctx.files.data + [executable, ctx.files._bash_runfiles])
+    runfiles = ctx.runfiles(files = ctx.files.data + ctx.files._bash_runfiles + [executable])
     runfiles = runfiles.merge_all([
         d[DefaultInfo].default_runfiles
         for d in ctx.attr.data + [command]

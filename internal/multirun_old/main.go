@@ -48,6 +48,8 @@ type command struct {
 	Tag string `json:"tag"`
 	// path is the path of the program to execute.
 	Path string `json:"path"`
+	Args []string `json:"args"`
+	Env []string `json:"env"`
 }
 
 type instructions struct {
@@ -70,23 +72,54 @@ func readInstructions(instructionsFile string) (instructions, error) {
 	return instr, nil
 }
 
+func debugEnv() {
+	env := os.Environ()
+	for _, e := range env {
+			if strings.HasPrefix(e, "RUNFILES_") || strings.HasPrefix(e, "BUILD_") || strings.HasPrefix(e, "TEST_") {
+					fmt.Println(e)
+			}
+	}
+
+	// Check that the files can be listed.
+	entries, _ := bazel.ListRunfiles()
+	for _, e := range entries {
+			fmt.Println(e.ShortPath, e.Path)
+	}
+}
+
+// cancelOnInterrupt calls f when os.Interrupt or SIGTERM is received.
+// It ignores subsequent interrupts on purpose - program should exit correctly after the first signal.
+func cancelOnInterrupt(ctx context.Context, f context.CancelFunc) {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+			select {
+			case <-ctx.Done():
+			case <-c:
+					f()
+			}
+	}()
+}
+
+func invokingExe() (string) {
+    if runtime.GOOS == "windows" {
+         exe, _ := os.Executable()
+         return exe
+    }
+    cwd := os.Getenv("PWD")
+    exe, _ := strings.CutSuffix(cwd, ".runfiles/_main")
+    return exe
+}
+
 func main() {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 	cancelOnInterrupt(ctx, cancelFunc)
 
-	// Because we are invoked via a symlink, we cannot accept any command line args
-	// The instructions file is always adjacent to the symlink location
-	exe, err := os.Executable()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to get current process path for multirun %s\n", err.Error())
-		os.Exit(1)
-	}
-	basePath, removed := strings.CutSuffix(exe, ".exe")
-	if !removed {
-		fmt.Fprintf(os.Stderr, "Failed remove .exe suffix from multirun %s\n", exe)
-		os.Exit(1)
-	}
+	// Because we are invoked via symlink, we can't accept arguments.
+	// The instructions are adjacent to the symlink source.
+	exe := invokingExe()
+	basePath, _ := strings.CutSuffix(exe, ".exe")
 	instructionsFile := basePath + ".json"
 	instr, err := readInstructions(instructionsFile)
 	if err != nil {

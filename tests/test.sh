@@ -30,20 +30,27 @@ if [[ "$output" != "hello" ]]; then
   echo "Expected 'hello', got '$output'"
   exit 1
 fi
+echo pass
 
 script=$(rlocation rules_multirun/tests/validate_args_cmd.$ext)
 $script
+echo pass
 script=$(rlocation rules_multirun/tests/validate_chdir_location_cmd.$ext)
 $script
+echo pass
 script=$(rlocation rules_multirun/tests/validate_env_cmd.$ext)
 $script
+echo pass
 
 script=$(rlocation rules_multirun/tests/multirun_binary_args.$ext)
 $script
+echo pass
 script=$(rlocation rules_multirun/tests/multirun_binary_env.$ext)
 $script
+echo pass
 script=$(rlocation rules_multirun/tests/multirun_binary_args_location.$ext)
 $script
+echo pass
 
 script="$(rlocation rules_multirun/tests/multirun_parallel.$ext)"
 parallel_output="$($script)"
@@ -51,6 +58,7 @@ if [[ -n "$parallel_output" ]]; then
   echo "Expected no output, got '$parallel_output'"
   exit 1
 fi
+echo pass
 
 script="$(rlocation rules_multirun/tests/multirun_parallel_no_buffer.$ext)"
 parallel_output="$($script)"
@@ -58,9 +66,10 @@ if [[ -n "$parallel_output" ]]; then
   echo "Expected no output, got '$parallel_output'"
   exit 1
 fi
+echo pass
 
 script="$(rlocation rules_multirun/tests/multirun_parallel_with_output.$ext)"
-parallel_output=$($script | sed 's=@[^/]*/=@/=g')
+parallel_output=$($script | sed 's=@[^/]*/=@/=g' 2>&1)
 if [[ "$parallel_output" != "Running @//tests:echo_hello
 hello
 Running @//tests:echo_hello2
@@ -68,6 +77,7 @@ hello2" ]]; then
   echo "Expected output, got '$parallel_output'"
   exit 1
 fi
+echo pass
 
 script=$(rlocation rules_multirun/tests/multirun_serial.$ext)
 serial_output=$($script | sed 's=@[^/]*/=@/=g')
@@ -76,12 +86,14 @@ Running @//tests:validate_env_cmd" ]]; then
   echo "Expected labeled output, got '$serial_output'"
   exit 1
 fi
+echo pass
 
 script=$(rlocation rules_multirun/tests/multirun_serial_keep_going.$ext)
 if serial_output=$($script | sed 's=@[^/]*/=@/=g'); then
   echo "Expected failure" >&2
   exit 1
 fi
+echo pass
 
 if [[ "$serial_output" != "Running @//tests:echo_and_fail
 hello and fail
@@ -90,6 +102,7 @@ hello" ]]; then
   echo "Expected labeled output, got '$serial_output'"
   exit 1
 fi
+echo pass
 
 script=$(rlocation rules_multirun/tests/multirun_serial_description.$ext)
 serial_output=$($script | sed 's=@[^/]*/=@/=g')
@@ -98,6 +111,7 @@ Running @//tests:validate_env_cmd" ]]; then
   echo "Expected labeled output, got '$serial_output'"
   exit 1
 fi
+echo pass
 
 script=$(rlocation rules_multirun/tests/multirun_serial_no_print.$ext)
 serial_no_output=$($script)
@@ -105,6 +119,7 @@ if [[ -n "$serial_no_output" ]]; then
   echo "Expected no output, got '$serial_no_output'"
   exit 1
 fi
+echo pass
 
 script=$(rlocation rules_multirun/tests/multirun_with_transition.$ext)
 serial_with_transition_output=$($script | sed 's=@[^/]*/=@/=g')
@@ -113,6 +128,7 @@ Running @//tests:validate_args_cmd" ]]; then
   echo "Expected labeled output, got '$serial_with_transition_output'"
   exit 1
 fi
+echo pass
 
 script=$(rlocation rules_multirun/tests/root_multirun.$ext)
 root_output=$($script)
@@ -120,3 +136,4 @@ if [[ "$root_output" != "hello" ]]; then
   echo "Expected 'hello' from root, got '$root_output'"
   exit 1
 fi
+echo pass

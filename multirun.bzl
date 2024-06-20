@@ -17,6 +17,7 @@ load(
 # to depend on it directly, or better, is there a more modern way to wrap cross-platform
 # launchers?
 load("//internal/bazel-lib:windows_utils.bzl", "create_windows_native_launcher_script")
+load("@aspect_bazel_lib//lib:paths.bzl", "to_rlocation_path")
 
 _BinaryArgsEnvInfo = provider(
     fields = ["args", "env"],
@@ -77,7 +78,7 @@ def _multirun_impl(ctx):
 
         commands.append(struct(
             tag = tag,
-            path = exe.short_path,
+            path = to_rlocation_path(ctx, exe),
             args = args,
             env = env,
         ))

@@ -21,8 +21,6 @@ type process struct {
 	stdin                  io.Reader
 	stdoutSink, stderrSink io.Writer
 	args                   []string
-	// addTag specifies whether a tag should be prepended to each line on the stdin/stderr from the command.
-	addTag                 bool
 	env                    []string
 }
 
