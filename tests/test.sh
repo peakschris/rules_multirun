@@ -71,11 +71,11 @@ fi
 
 script="$(check_rlocation _main/tests/multirun_parallel_with_output.exe)"
 # commands are executing in parallel, we can't test any ordering. sort output
-parallel_output=$($script | sed 's=@[^/]*/=@/=g' 2>&1 | sort)
-if [[ "$parallel_output" != "Running @//tests:echo_hello
-Running @//tests:echo_hello2
-hello
-hello2" ]]; then
+parallel_output=$($script | sed 's=@[^/]*/=@/=g' 2>&1 | sort -f)
+if [[ "$parallel_output" != "hello
+hello2
+Running @//tests:echo_hello
+Running @//tests:echo_hello2" ]]; then
   echo "Expected output, got '$parallel_output'"
   exit 1
 fi
