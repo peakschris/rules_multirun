@@ -1,3 +1,4 @@
+# we require symlinks
 startup --windows_enable_symlinks
 
 common --lockfile_mode=off
@@ -5,21 +6,23 @@ common --lockfile_mode=off
 # Automatically apply --config=linux, --config=windows etc
 common --enable_platform_specific_config
 
-build --remote_cache=grpcs://remote.buildbuddy.io
-build --remote_timeout=3600
+common --remote_cache=grpcs://remote.buildbuddy.io
+common --remote_timeout=3600
 
 # TODO: Remove once stardoc's protobuf doesn't have warnings
-build:linux --host_per_file_copt="external/.*protobuf.*@-Wno-everything"
-build:linux --per_file_copt="external/.*protobuf.*@-Wno-everything"
+common:linux --host_per_file_copt="external/.*protobuf.*@-Wno-everything"
+common:linux --per_file_copt="external/.*protobuf.*@-Wno-everything"
 
 # TODO: Remove once stardoc's zlib doesn't have warnings
-build:linux --host_per_file_copt="external/.*zlib.*@-Wno-everything"
-build:linux --per_file_copt="external/.*zlib.*@-Wno-everything"
-
-test --test_output=errors
-
-common --enable_runfiles
+common:linux --host_per_file_copt="external/.*zlib.*@-Wno-everything"
+common:linux --per_file_copt="external/.*zlib.*@-Wno-everything"
 
 # rules_go's go sdk cgo compiler doesn't build with some compilers 
 # that may be configured by bazel, but we don't need it; disable
 common --@rules_go//go/config:pure
+
+common --test_output=errors
+
+# PATH varies when running vs testing, this makes it more like running to validate the actual behavior. Specifically '.' is included for tests but not runs
+common:linux --test_env=PATH=/usr/bin:/bin
+common:mac --test_env=PATH=/usr/bin:/bin

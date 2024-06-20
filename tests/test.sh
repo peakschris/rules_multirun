@@ -14,9 +14,6 @@ source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \
   { echo>&2 "ERROR: cannot find $f"; exit 1; }; f=; set -e
 # --- end runfiles.bash initialization v3 ---
 
-# PATH varies when running vs testing, this makes it more like running to validate the actual behavior. Specifically '.' is included for tests but not runs
-#export PATH=/usr/bin:/bin
-
 unameOut="$(uname -s)"
 case "${unameOut}" in
     Linux*)     ext=bash;;
