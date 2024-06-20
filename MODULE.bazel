@@ -29,3 +29,8 @@ go_sdk.download(
         "windows_amd64": ("go1.22.3.windows-amd64.zip", "cab2af6951a6e2115824263f6df13ff069c47270f5788714fa1d776f7f60cb39"),
     },
 )
+
+#################################################################
+# Aspect lib has improved binary generation rules & utils.
+#################################################################
+bazel_dep(name = "aspect_bazel_lib", version = "2.7.7")

@@ -22,7 +22,8 @@ type process struct {
 	stdoutSink, stderrSink io.Writer
 	args                   []string
 	// addTag specifies whether a tag should be prepended to each line on the stdin/stderr from the command.
-	addTag bool
+	addTag                 bool
+	env                    []string
 }
 
 // launch in bash
@@ -40,7 +41,7 @@ func (p *process) run(ctx context.Context) error {
 		Path: launch,
 		Args: append([]string{launch}, args...),
 		// nil means "use environment of the parent process", see the godoc. We do this explicitly to show the intent.
-		Env:   nil,
+		Env:   p.env,
 		Stdin: p.stdin,
 	}
 	var stdout, stderr io.ReadCloser

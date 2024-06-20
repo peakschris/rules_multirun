@@ -60,12 +60,10 @@ def _command_exe(command):
     return exe
 
 def _multirun_impl(ctx):
-    instructions_file = ctx.actions.declare_file(ctx.label.name + ".json")
-    is_windows = ctx.target_platform_has_constraint(ctx.attr._windows_constraint[platform_common.ConstraintValueInfo])
-
     if ctx.attr.jobs < 0:
         fail("'jobs' attribute should be at least 0")
 
+    commands = []
     command_executables = []
     for command in ctx.attr.commands:
         args = command[_BinaryArgsEnvInfo].args if _BinaryArgsEnvInfo in command else []
@@ -93,33 +91,31 @@ def _multirun_impl(ctx):
         buffer_output = ctx.attr.buffer_output,
         workspace_name = ctx.workspace_name,
     )
+    instructions_file = ctx.actions.declare_file(ctx.label.name + ".json")
     ctx.actions.write(
         output = instructions_file,
         content = json.encode(instructions),
     )
 
-    out = ctx.actions.declare_file(ctx.label.name + ".exe")
+    # approach from https://github.com/bazelbuild/bazel-skylib/blob/main/rules/native_binary.bzl
+    runner_link = ctx.actions.declare_file(ctx.label.name + ".exe")
     ctx.actions.symlink(
         target_file = ctx.executable._runner,
-        output = out,
+        output = runner_link,
         is_executable = True,
     )
 
     runfiles = ctx.runfiles(files = command_executables + [instructions_file])
     runfiles = runfiles.merge_all([
         d[DefaultInfo].default_runfiles
-        for d in ctx.attr.data + [ctx.attr._runner]
-    ])
-    runfiles = runfiles.merge_all([
-        tc.command[DefaultInfo].default_runfiles
-        for tc in tagged_commands
+        for d in ctx.attr.commands + ctx.attr.data + [ctx.attr._runner]
     ])
 
     return [
         DefaultInfo(
-            files = depset([bash_launcher]),
-            runfiles = runfiles.merge(ctx.runfiles(files = runfiles_files + ctx.files.data + [bash_launcher])),
-            executable = launcher,
+            files = depset([runner_link]),
+            runfiles = runfiles,
+            executable = runner_link,
         ),
     ]
 
@@ -166,10 +162,9 @@ def multirun_with_transition(cfg, allowlist = None):
         ),
         "_runner": attr.label(
             default = Label("//internal/multirun:multirun"),
-            cfg = "exec",
+            cfg = "target",
             executable = True,
         ),
-        "_windows_constraint": attr.label(default = "@platforms//os:windows"),
     }
 
     return rule(

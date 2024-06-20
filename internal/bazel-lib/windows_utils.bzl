@@ -300,13 +300,8 @@ exit /b
 :: end of runfiles_current_repository
 
 :runfiles_rlocation_checked
-if exist "!RUNFILES_DIR!\%~1" if not exist "!RUNFILES_MANIFEST_FILE!" (
-    if "!RUNFILES_LIB_DEBUG!"=="1" (
-        echo INFO[runfiles.bat]: rlocation(%~1^): found under RUNFILES_DIR (!RUNFILES_DIR!^), return 1>&2
-    )
-    set "%~2=!RUNFILES_DIR!\%~1"
-    exit /b 0
-) else if exist "!RUNFILES_MANIFEST_FILE!" (
+:: there may be both a manifest file and runfiles dir. Look in the manifest first, then runfiles.
+if exist "%RUNFILES_MANIFEST_FILE%" (
     if "!RUNFILES_LIB_DEBUG!"=="1" (
         echo INFO[runfiles.bat]: rlocation(%~1^): looking in RUNFILES_MANIFEST_FILE (!RUNFILES_MANIFEST_FILE!^) 1>&2
     )
@@ -333,6 +328,7 @@ if exist "!RUNFILES_DIR!\%~1" if not exist "!RUNFILES_MANIFEST_FILE!" (
             set "prefix_result=%%a"
         )
         if "!prefix_result!"=="" (
+            echo NO PREFIX RESULT, LOOPING
             goto :while
         )
         set "candidate=!prefix_result!!%~1:~!prefix!:~1!"
@@ -378,12 +374,18 @@ if exist "!RUNFILES_DIR!\%~1" if not exist "!RUNFILES_MANIFEST_FILE!" (
             exit /b 0
         )
     )
-) else (
-    if "!RUNFILES_LIB_DEBUG!"=="1" (
-        echo ERROR[runfiles.bat]: cannot look up runfile "%~1" (RUNFILES_DIR="!RUNFILES_DIR!", RUNFILES_MANIFEST_FILE="!RUNFILES_MANIFEST_FILE!"^) 1>&2
-    )
-    exit /b 1
 )
+if exist "!RUNFILES_DIR!\%~1" (
+    if "!RUNFILES_LIB_DEBUG!"=="1" (
+        echo INFO[runfiles.bat]: rlocation(%~1^): found under RUNFILES_DIR (!RUNFILES_DIR!^), return 1>&2
+    )
+    set "%~2=!RUNFILES_DIR!\%~1"
+    exit /b 0
+)
+if "!RUNFILES_LIB_DEBUG!"=="1" (
+    echo ERROR[runfiles.bat]: cannot look up runfile "%~1" (RUNFILES_DIR="!RUNFILES_DIR!", RUNFILES_MANIFEST_FILE="!RUNFILES_MANIFEST_FILE!"^) 1>&2
+)
+exit /b 1
 ::end of runfiles_rlocation_checked
 
 :end

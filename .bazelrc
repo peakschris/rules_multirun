@@ -1,3 +1,5 @@
+startup --windows_enable_symlinks
+
 common --lockfile_mode=off
 
 # Automatically apply --config=linux, --config=windows etc

@@ -1,4 +1,11 @@
-# These are vendored in as a quick hack from 
-# https://github.com/aspect-build/bazel-lib/tree/main/lib
-# It would be better to depend on them directly, or see if there is a more wrapped
-# way to allow invokation of both windows and linux binaries
+# Significant update to windows_utils.bzl from bazel-lib
+# Now contains v3 runfiles logic
+# Would like to contribute this back to bazel-lib
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+bzl_library(
+    name = "windows_utils",
+    srcs = ["windows_utils.bzl"],
+    visibility = ["//:__pkg__"],
+)

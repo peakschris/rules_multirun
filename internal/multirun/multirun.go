@@ -21,6 +21,18 @@ type multirun struct {
 	stopOnError            bool
 }
 
+func (m multirun) env() ([]string) {
+	env := os.Environ()
+	exe, err := os.Executable()
+	if err != nil {
+		fmt.Fprintf(m.stderrSink, "Failed to get current process path for multirun %s\n", err.Error())
+		os.Exit(1)
+	}
+	env = append(env, "RUNFILES_MANIFEST_FILE=" + exe + ".runfiles_manifest")
+	env = append(env, "RUNFILES_REPO_MAPPING=" + exe + ".repo_mapping")
+	return env
+}
+	
 func (m multirun) run(ctx context.Context) error {
 	// minimum concurrency is 1, which is sequential
 	if m.jobs < 0 {
@@ -34,7 +46,7 @@ func (m multirun) run(ctx context.Context) error {
 	return m.boundedExecution(ctx)
 }
 
-func (m multirun) Runfile(path string) (string, error) {
+func (m multirun) runfile(path string) (string, error) {
 	fullPath, err1 := bazel.Runfile(path)
 	if err1 != nil {
 		strippedPath := strings.SplitN(path, "/", 2)[1]
@@ -56,7 +68,7 @@ func (m multirun) unboundedExecution(ctx context.Context) error {
 	errs := make(chan error)
 
 	for _, cmd := range m.commands {
-		fullPath, err := m.Runfile(cmd.Path)
+		fullPath, err := m.runfile(cmd.Path)
 		if err != nil {
 			fmt.Fprintf(m.stderrSink, "Failed to lookup runfile for %s %s\n", cmd.Path, err.Error())
 			return err
@@ -68,6 +80,7 @@ func (m multirun) unboundedExecution(ctx context.Context) error {
 			stderrSink: m.stderrSink,
 			args:       m.args,
 			addTag:     m.addTag,
+			env:        m.env(),
 		}
 
 		go func() {
@@ -138,7 +151,7 @@ func (m multirun) spawnWorker(ctx context.Context, commands <-chan command, errs
 			return true
 		default:
 		}
-		fullPath, err := m.Runfile(cmd.Path)
+		fullPath, err := m.runfile(cmd.Path)
 		if err != nil {
 			fmt.Fprintf(m.stderrSink, "Failed to lookup runfile for %s %s\n", cmd.Path, err.Error())
 			return true
@@ -151,6 +164,7 @@ func (m multirun) spawnWorker(ctx context.Context, commands <-chan command, errs
 			stdoutSink: m.stdoutSink,
 			stderrSink: m.stderrSink,
 			args:       m.args,
+			env:        m.env(),
 		}
 
 		// when executing concurrently, tag should be added

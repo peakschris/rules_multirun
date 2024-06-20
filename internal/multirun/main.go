@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/bazelbuild/rules_go/go/tools/bazel"
@@ -30,25 +30,18 @@ func debugEnv() {
 	}
 }
 
-func main() {
-	var args arguments
-	flag.StringVar(&args.instructionsFile, "f", "", "file with instructions")
-	flag.Parse()
-	args.args = flag.Args()
-	//debugEnv()
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-	cancelOnInterrupt(ctx, cancelFunc)
-	exitCode, err := args.run(ctx)
-	if err != nil {
-		// Some sort of internal failure
-		fmt.Fprintf(os.Stderr, "%+v\n", err)
-		os.Exit(1)
-	}
-	if exitCode != 0 {
-		// Some command failed. Don't print anything
-		os.Exit(exitCode)
-	}
+// cancelOnInterrupt calls f when os.Interrupt or SIGTERM is received.
+// It ignores subsequent interrupts on purpose - program should exit correctly after the first signal.
+func cancelOnInterrupt(ctx context.Context, f context.CancelFunc) {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		select {
+		case <-ctx.Done():
+		case <-c:
+			f()
+		}
+	}()
 }
 
 type command struct {
@@ -65,33 +58,45 @@ type instructions struct {
 	StopOnError bool      `json:"stopOnError"`
 }
 
-type arguments struct {
-	instructionsFile string
-	args             []string
-}
-
-func (a arguments) readInstructions() (instructions, error) {
-	content, err := ioutil.ReadFile(a.instructionsFile)
+func readInstructions(instructionsFile string) (instructions, error) {
+	content, err := ioutil.ReadFile(instructionsFile)
 	if err != nil {
-		return instructions{}, fmt.Errorf("failed to read instructions file %q: %v", a.instructionsFile, err)
+		return instructions{}, fmt.Errorf("failed to read instructions file %q: %v", instructionsFile, err)
 	}
 	var instr instructions
 	if err = json.Unmarshal(content, &instr); err != nil {
-		return instructions{}, fmt.Errorf("failed to parse file %q as JSON: %v", a.instructionsFile, err)
+		return instructions{}, fmt.Errorf("failed to parse file %q as JSON: %v", instructionsFile, err)
 	}
 	return instr, nil
 }
 
-func (a arguments) run(ctx context.Context) (int, error) {
-	instr, err := a.readInstructions()
+func main() {
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+	cancelOnInterrupt(ctx, cancelFunc)
+
+	// Because we are invoked via a symlink, we cannot accept any command line args
+	// The instructions file is always adjacent to the symlink location
+	exe, err := os.Executable()
 	if err != nil {
-		return 0, err
+		fmt.Fprintf(os.Stderr, "Failed to get current process path for multirun %s\n", err.Error())
+		os.Exit(1)
+	}
+	basePath, removed := strings.CutSuffix(exe, ".exe")
+	if !removed {
+		fmt.Fprintf(os.Stderr, "Failed remove .exe suffix from multirun %s\n", exe)
+		os.Exit(1)
+	}
+	instructionsFile := basePath + ".json"
+	instr, err := readInstructions(instructionsFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%+v\n", err)
+		os.Exit(1)
 	}
 	m := multirun{
 		commands:    instr.Commands,
 		stdoutSink:  os.Stdout,
 		stderrSink:  os.Stderr,
-		args:        a.args,
 		jobs:        instr.Jobs,
 		quiet:       instr.Quiet,
 		addTag:      instr.AddTag,
@@ -101,23 +106,12 @@ func (a arguments) run(ctx context.Context) (int, error) {
 	if err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
-			return exitErr.ExitCode(), nil
+			// Some command failed. Don't print anything
+			os.Exit(exitErr.ExitCode())
 		}
-		return 0, err
+		// Some sort of internal failure
+		fmt.Fprintf(os.Stderr, "%+v\n", err)
+		os.Exit(1)
 	}
-	return 0, nil
-}
-
-// cancelOnInterrupt calls f when os.Interrupt or SIGTERM is received.
-// It ignores subsequent interrupts on purpose - program should exit correctly after the first signal.
-func cancelOnInterrupt(ctx context.Context, f context.CancelFunc) {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		select {
-		case <-ctx.Done():
-		case <-c:
-			f()
-		}
-	}()
+	os.Exit(0)
 }
