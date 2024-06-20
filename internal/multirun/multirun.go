@@ -36,12 +36,14 @@ func runfile(path string) (string, error) {
 func debugEnv() {
 	env := os.Environ()
 	for _, e := range env {
-			if strings.HasPrefix(e, "RUNFILES_") || strings.HasPrefix(e, "BUILD_") || strings.HasPrefix(e, "TEST_") {
-					fmt.Println(e)
-			}
-	}
+        if strings.HasPrefix(e, "RUNFILES_") || strings.HasPrefix(e, "BUILD_") || strings.HasPrefix(e, "TEST_") {
+                fmt.Println(e)
+        }
+    }
 
-    
+    manifest := os.Getenv("RUNFILES_MANIFEST_FILE")
+    fmt.Println("RUNFILES_MANIFEST_FILE="+manifest)
+
 	// Check that the files can be listed.
 	//entries, _ := ListRunfiles()
 	//for _, e := range entries {
@@ -70,7 +72,6 @@ func readInstructions(instructionsFile string) (Instructions, error) {
 	if err != nil {
 		return Instructions{}, fmt.Errorf("failed to read instructions file %q: %v", instructionsFile, err)
 	}
-    fmt.Printf("%s\n", content)
 	var instr Instructions
 	if err = json.Unmarshal(content, &instr); err != nil {
 		return Instructions{}, fmt.Errorf("failed to parse file %q as JSON: %v", instructionsFile, err)
@@ -94,8 +95,6 @@ func runCommand(command Command, bufferOutput bool) (int, string, error) {
         env = append(env, fmt.Sprintf("%s=%s", k, v))
     }
 
-    cmdStr := command.Path + " " + strings.Join(args, " ")
-    fmt.Println("Running command:", cmdStr)
     cmd = exec.Command(command.Path, args...)
     cmd.Env = env
 
@@ -119,10 +118,8 @@ func performConcurrently(commands []Command, printCommand bool, bufferOutput boo
     var wg sync.WaitGroup
     success := true
     mu := &sync.Mutex{} // To safely update `success`
-    fmt.Printf("%d\n", len(commands))
 
     for _, cmd := range commands {
-        fmt.Println(cmd.Path)
         wg.Add(1)
         go func(cmd Command) {
             defer wg.Done()
@@ -244,13 +241,8 @@ func main() {
 	// The instructions file is always adjacent to the symlink location
 	exe := invokingExe()
 	basePath, _ := strings.CutSuffix(exe, ".exe")
-
-    manifest := os.Getenv("RUNFILES_MANIFEST_FILE")
-    fmt.Println("RUNFILES_MANIFEST_FILE="+manifest)
-    debugEnv()
-
+    //debugEnv()
 	instructionsFile := basePath + ".json"
-    fmt.Println(instructionsFile)
 	instr, err := readInstructions(instructionsFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%+v\n", err)
@@ -262,7 +254,6 @@ func main() {
     commands := resolveCommands(instr.Commands)
     var success bool
     if parallel {
-        fmt.Println("calling performConcurrently")
         success = performConcurrently(commands, printCommand, instr.Buffer_output)
     } else {
         success = performSerially(commands, printCommand, instr.Keep_going)
